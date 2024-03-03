@@ -33,7 +33,7 @@ public class ResizeableImage {
         return new ResizeableImage(resizedImage);
     }
 
-    public static ResizeableImage getTransparant(final int w, final int h) {
+    public static ResizeableImage getTransparent(final int w, final int h) {
         BufferedImage ret = new BufferedImage(w, h, BufferedImage.TYPE_4BYTE_ABGR);
         Graphics2D g2d = ret.createGraphics();
         g2d.setColor(new Color(0, 0, 0, 0));

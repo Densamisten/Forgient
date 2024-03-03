@@ -59,7 +59,7 @@ public class BlockImageCreationWorker extends Thread {
      private BlockState getBestFit(ResizeableImage img, ArrayList<ImageBlock> blockList) {
 
          BlockState ret = Blocks.AIR.defaultBlockState();
-         int minScore = img.getSimilarity(ResizeableImage.getTransparant(img.width, img.height));
+         int minScore = img.getSimilarity(ResizeableImage.getTransparent(img.width, img.height));
 
          for (ImageBlock block : blockList) {
              int score = block.image.getSimilarity(img);

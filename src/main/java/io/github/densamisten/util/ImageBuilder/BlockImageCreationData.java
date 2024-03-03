@@ -2,6 +2,7 @@ package io.github.densamisten.util.ImageBuilder;
 
 import java.util.function.Consumer;
 
+import io.github.densamisten.util.WorldTransformer.WorldTransformAction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;

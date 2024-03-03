@@ -2,8 +2,6 @@ package io.github.densamisten.command;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import io.github.densamisten.Forgient;
 import io.github.densamisten.util.DirectoryArgument;
@@ -12,6 +10,7 @@ import io.github.densamisten.util.ImageBuilder.BlockImageCreationData;
 import io.github.densamisten.util.ImageBuilder.ImageBlock;
 import io.github.densamisten.util.ImageBuilder.ResizeableImage;
 import io.github.densamisten.util.PathArgument;
+import io.github.densamisten.util.WorldTransformer.WorldTransformAction;
 import net.minecraft.client.renderer.block.BlockModelShaper;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -32,12 +31,18 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.*;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.NotDirectoryException;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Optional;
+import java.util.Stack;
 
 public class ImageCommand {
 
@@ -59,41 +64,30 @@ public class ImageCommand {
         } catch (Exception ignored) {}
     }
 
-    /**
+     /**
      * Register this command to Minecraft
      **/
 
     public ImageCommand(CommandDispatcher<CommandSourceStack> dispatcher) {
         ImageCommand.setup();
 
-        LiteralArgumentBuilder<CommandSourceStack> createCommand = Commands.literal("create");
-
-        // Subcommand for creating from clipboard
-        LiteralArgumentBuilder<CommandSourceStack> clipboardCommand = Commands.literal("clipboard")
-                .then(Commands.argument("text", StringArgumentType.string())
-                        .executes(ctx -> createImageFromClipboard(ctx.getSource(), StringArgumentType.getString(ctx, "text"))))
-                .then(Commands.literal("size")
-                        .then(Commands.argument("size", IntegerArgumentType.integer())
-                                .executes(ctx -> createImageCommand(ctx, IntegerArgumentType.getInteger(ctx, "size"), IntegerArgumentType.getInteger(ctx, "size"))))
-                        .then(Commands.argument("width", IntegerArgumentType.integer())
-                                .then(Commands.argument("height", IntegerArgumentType.integer())
-                                        .executes(ctx -> createImageCommand(ctx, IntegerArgumentType.getInteger(ctx, "width"), IntegerArgumentType.getInteger(ctx, "height"))))));
-
-        // Subcommand for creating from source file
-        LiteralArgumentBuilder<CommandSourceStack> srcCommand = Commands.literal("src")
-                .then(Commands.argument("src", imageSourceArgument)
-                        .then(Commands.literal("size")
-                                .then(Commands.argument("size", IntegerArgumentType.integer())
-                                        .executes(ctx -> createImageCommand(ctx, IntegerArgumentType.getInteger(ctx, "size"), IntegerArgumentType.getInteger(ctx, "size"))))
-                                .then(Commands.argument("width", IntegerArgumentType.integer())
-                                        .then(Commands.argument("height", IntegerArgumentType.integer())
-                                                .executes(ctx -> createImageCommand(ctx, IntegerArgumentType.getInteger(ctx, "width"), IntegerArgumentType.getInteger(ctx, "height")))))));
-
-        createCommand.then(clipboardCommand);
-        createCommand.then(srcCommand);
-
         dispatcher.register(Commands.literal("image")
-                .then(createCommand)
+                .then(Commands.literal("create")
+                        .then(Commands.argument("src", imageSourceArgument)
+                                .then(Commands.literal("size")
+                                        .then(Commands.argument("size", IntegerArgumentType.integer())
+                                                .executes(ctx -> createImageCommand(ctx, IntegerArgumentType.getInteger(ctx, "size"), IntegerArgumentType.getInteger(ctx, "size"))))
+                                        .then(Commands.argument("width", IntegerArgumentType.integer())
+                                                .then(Commands.argument("height", IntegerArgumentType.integer())
+                                                        .executes(ctx -> createImageCommand(ctx, IntegerArgumentType.getInteger(ctx, "width"), IntegerArgumentType.getInteger(ctx, "height")))))
+                                        .executes(ctx -> {
+                                            sendErrorMessage(ctx.getSource());
+                                            return 0;
+                                        })))
+                        .executes(ctx -> {
+                            sendErrorMessage(ctx.getSource());
+                            return 0;
+                        }))
                 .then(Commands.literal("reload")
                         .executes(ImageCommand::reloadCommand))
                 .then(Commands.literal("undo")
@@ -104,7 +98,6 @@ public class ImageCommand {
                         .then(Commands.argument("dir", new DirectoryArgument())
                                 .executes(ImageCommand::setDirectoryCommand))));
     }
-
 
     private static void sendErrorMessage(CommandSourceStack source) {
         source.sendFailure(Component.literal("Please provide width and height arguments."));
@@ -145,34 +138,13 @@ public class ImageCommand {
     /*====================================================*/
 
     /*
-     * Create an image from the clipboard
-     * */
-    private static int createImageFromClipboard(CommandSourceStack source, String text) {
-        byte[] imageBytes = Base64.getDecoder().decode(text);
-
-        try {
-            // Read image from bytes
-            BufferedImage img = ImageIO.read(new ByteArrayInputStream(imageBytes));
-
-            // Save image to a file
-            File outputFile = new File("decoded_image.png");
-            ImageIO.write(img, "png", outputFile);
-
-            // Send success message
-            source.sendSuccess(() -> Component.literal("Image successfully decoded and saved as 'decoded_image.png'"), true);
-        } catch (IOException e) {
-            // Send failure message if an error occurs
-            source.sendFailure(Component.literal("Failed to decode image: " + e.getMessage()));
-        }        return 1; // Return success
-    }
-    /*
      * code that gets ran once the command /image create <src> etc. is called.
      * */
     private static int createImageCommand(CommandContext<CommandSourceStack> ctx, int size, int integer) {
 
-        /**
+         /*
          * Load source image
-         **/
+         */
         ResizeableImage image = null;
         int w = 0, h = 0;
         boolean width_set = false, height_set = false;
@@ -206,17 +178,18 @@ public class ImageCommand {
             }
         }
 
+
          /*
-          world in which the command was sent
-          */
+         * world in which the command was sent
+         */
         CommandSourceStack source 	= ctx.getSource();
         Entity entity  	            = source.getEntity();
         ServerLevel world   	    = source.getLevel();
 
          /*
-          Get relative directions and positions
-          to entity for placing image blocks at the
-          right place
+         * Get relative directions and positions
+         * to entity for placing image blocks at the
+         * right place
          */
         Direction viewDir       = null;
         if (entity != null) {
@@ -389,13 +362,38 @@ public class ImageCommand {
             LOGGER.warn(bLoc.getPath());
 
             try {
-                Optional<InputStream> inputStream = Optional.of(manager.getResource(texture).get().open());
-                BufferedImage img = ImageIO.read(inputStream.get());
-                ret.add(new ImageBlock(state, new ResizeableImage(img)));
-                LOGGER.info("Successfully loaded: " + texture.getPath());
+                Optional<InputStream> inputStream = manager.getResource(texture).map(resource -> {
+                    try {
+                        return resource.open();
+                    } catch (IOException e) {
+                        LOGGER.warn("Error opening input stream for " + texture.getPath() + ": " + e.getMessage());
+                        return null;
+                    }
+                });
+
+                inputStream.ifPresent(stream -> {
+                    try {
+                        BufferedImage img = ImageIO.read(stream);
+                        if (img != null) {
+                            ret.add(new ImageBlock(state, new ResizeableImage(img)));
+                            LOGGER.info("Successfully loaded: " + texture.getPath());
+                        } else {
+                            LOGGER.warn("Failed to load image from " + texture.getPath() + ". ImageIO.read() returned null.");
+                        }
+                    } catch (IOException e) {
+                        LOGGER.warn("Error loading image from " + texture.getPath() + ": " + e.getMessage());
+                    } finally {
+                        try {
+                            stream.close();
+                        } catch (IOException e) {
+                            LOGGER.warn("Error closing input stream for " + texture.getPath() + ": " + e.getMessage());
+                        }
+                    }
+                });
             } catch (Exception e) {
                 LOGGER.warn("Error loading image from " + texture.getPath() + ": " + e.getMessage());
             }
+
 
 
         }

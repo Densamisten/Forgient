@@ -1,48 +1,66 @@
 package io.github.densamisten.command;
 
+import com.mojang.blaze3d.platform.ClipboardManager;
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWErrorCallback;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Base64;
 
 public class Base64ToImageCommand {
+
+    // Set an instance for the clipboard
+    private final ClipboardManager clipboardManager = new ClipboardManager();
+
     public Base64ToImageCommand(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(Commands.literal("base64toimage")
-                .then(Commands.argument("base64", StringArgumentType.string())
-                        .executes(context -> execute(context.getSource(), StringArgumentType.getString(context, "base64")))
-                )
+        dispatcher.register(Commands.literal("b642img")
+                .executes(context -> convertClipboardToImage(context.getSource()))
         );
     }
 
-    private static int execute(CommandSourceStack source, String base64) {
-        String base64String = base64;
+    private int convertClipboardToImage(CommandSourceStack source) {
+        // Get the clipboard
+        String clipboardContents = clipboardManager.getClipboard(GLFW.glfwGetCurrentContext(), GLFWErrorCallback.createPrint(System.err));
 
-        // Remove the prefix 'data:image/png;base64,' from the Base64 string if present
-        if (base64String.startsWith("data:image/png;base64,")) {
-            base64String = base64String.substring("data:image/png;base64,".length());
-        }
-
-        byte[] imageBytes = Base64.getDecoder().decode(base64String);
+        // Decode the base64 contents and set to a variable
+        byte[] imageBytes = Base64.getDecoder().decode(clipboardContents);
 
         try {
-            BufferedImage img = ImageIO.read(new ByteArrayInputStream(imageBytes));
-            File outputFile = new File("decoded_image.png");
-            ImageIO.write(img, "png", outputFile);
-            source.sendSuccess(() -> Component.literal("Image successfully decoded and saved as 'decoded_image.png'"), true);
+            String imageType = getImageType(imageBytes);
+            if (imageType.equals("PNG") || imageType.equals("JPEG")) {
+                BufferedImage img = ImageIO.read(new ByteArrayInputStream(imageBytes));
+                if (img != null) {
+                    File outputFile = new File("downloads/decoded_image." + imageType.toLowerCase());
+                    ImageIO.write(img, imageType, outputFile);
+                    source.sendSuccess(() -> Component.literal("Image successfully decoded and saved as 'decoded_image." + imageType.toLowerCase() + "'"), true);
+                    return 1;
+                }
+            } else {
+                source.sendFailure(Component.literal("Unknown image type."));
+            }
         } catch (IOException e) {
-            source.sendFailure(Component.literal("Failed to decode image: " + e.getMessage()));
+            source.sendFailure(Component.literal("Failed to decode image from clipboard: " + e.getMessage()));
         }
 
-        return 1;
+        return 0;
+    }
+
+    private String getImageType(byte[] imageData) {
+        if (imageData.length >= 8) {
+            if (imageData[0] == (byte) 0x89 && imageData[1] == (byte) 0x50 && imageData[2] == (byte) 0x4E && imageData[3] == (byte) 0x47 && imageData[4] == (byte) 0x0D && imageData[5] == (byte) 0x0A && imageData[6] == (byte) 0x1A && imageData[7] == (byte) 0x0A) {
+                return "PNG";
+            } else if (imageData[0] == (byte) 0xFF && imageData[1] == (byte) 0xD8 && imageData[2] == (byte) 0xFF && imageData[3] == (byte) 0xE0 && imageData[6] == (byte) 'J' && imageData[7] == (byte) 'F' && imageData[8] == (byte) 'I' && imageData[9] == (byte) 'F') {
+                return "JPEG";
+            }
+        }
+        return "Unknown";
     }
 }
