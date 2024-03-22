@@ -1,20 +1,29 @@
 package io.github.densamisten;
 
 import com.mojang.logging.LogUtils;
+/*import io.github.densamisten.arguments.ForgientArgumentType;
+import io.github.densamisten.block.ForgientBlocks;
+import io.github.densamisten.command.ImageCommand;
+import io.github.densamisten.gui.ForgientMenus;
+import io.github.densamisten.item.ForgientCreativeModeTab;
+import io.github.densamisten.item.ForgientItems;
+
+import io.github.densamisten.sound.ForgientSounds;*/
 import io.github.densamisten.arguments.ForgientArgumentType;
 import io.github.densamisten.block.ForgientBlocks;
 import io.github.densamisten.command.ImageCommand;
+import io.github.densamisten.gui.ForgientMenus;
 import io.github.densamisten.item.ForgientCreativeModeTab;
-import io.github.densamisten.item.ModItems;
-
+import io.github.densamisten.item.ForgientItems;
+import io.github.densamisten.sound.ForgientSounds;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.block.Blocks;
 
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -25,9 +34,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
 import org.slf4j.Logger;
 
 // The value here should match an entry in the META-INF/mods.toml file
@@ -46,18 +53,26 @@ public class Forgient
     {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
-        ModItems.register(modEventBus);
+        ForgientArgumentType.register(modEventBus);
+
+        ForgientItems.register(modEventBus);
         ForgientBlocks.register(modEventBus);
 
         ForgientCreativeModeTab.register(modEventBus);
+        ForgientMenus.register(modEventBus);
+
+        ForgientSounds.register(modEventBus);
 
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
 
+        // Register the loadComplete method for modloading
+        modEventBus.addListener(this::loadComplete);
+
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
 
-        ForgientArgumentType.register(modEventBus);
+        //ForgientArgumentType.register(modEventBus);
 
         // Register our mod's ForgeConfigSpec so that Forge can create and load the config file for us
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.SPEC);
@@ -76,6 +91,7 @@ public class Forgient
         // Some common setup code
         LOGGER.info("HELLO FROM COMMON SETUP");
 
+        ServerLevelAccessor.DIRECTIONS.clone();
         if (Config.logDirtBlock)
             LOGGER.info("DIRT BLOCK >> {}", ForgeRegistries.BLOCKS.getKey(Blocks.DIRT));
 

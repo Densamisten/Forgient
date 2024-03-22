@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "io.github.densamisten.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "",
+  "mixins": [
+    "EmptyMapItem",
+    "FireworkRocketEntityMixin"
+  ],
+  "client": [
+  ],
+  "minVersion": "0.8"
+}

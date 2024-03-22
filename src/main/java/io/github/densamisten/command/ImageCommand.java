@@ -54,23 +54,11 @@ public class ImageCommand {
     public static Stack<WorldTransformAction> undoStack = new Stack<>();
     public static Stack<WorldTransformAction> redoStack = new Stack<>();
 
-    /**
-     * Setup class
-     **/
-
-    public static void setup() {
-        try {
-            ImageCommand.setRootDirectory(System.getProperty("user.home") + "/Downloads");
-        } catch (Exception ignored) {}
-    }
-
      /**
      * Register this command to Minecraft
      **/
 
     public ImageCommand(CommandDispatcher<CommandSourceStack> dispatcher) {
-        ImageCommand.setup();
-
         dispatcher.register(Commands.literal("image")
                 .then(Commands.literal("create")
                         .then(Commands.argument("src", imageSourceArgument)
