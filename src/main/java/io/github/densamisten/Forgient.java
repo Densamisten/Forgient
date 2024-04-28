@@ -12,6 +12,8 @@ import io.github.densamisten.sound.ForgientSounds;*/
 import io.github.densamisten.arguments.ForgientArgumentType;
 import io.github.densamisten.block.ForgientBlocks;
 import io.github.densamisten.command.ImageCommand;
+import io.github.densamisten.entity.ForgientEntity;
+import io.github.densamisten.entity.ForgientEntityRegistry;
 import io.github.densamisten.gui.ForgientMenus;
 import io.github.densamisten.item.ForgientCreativeModeTab;
 import io.github.densamisten.item.ForgientItems;
@@ -55,12 +57,20 @@ public class Forgient
 
         ForgientArgumentType.register(modEventBus);
 
+        // items
         ForgientItems.register(modEventBus);
+
+        // blocks
         ForgientBlocks.register(modEventBus);
 
+        // creative mode tab
         ForgientCreativeModeTab.register(modEventBus);
         ForgientMenus.register(modEventBus);
 
+        // entities
+        ForgientEntityRegistry.register(modEventBus);
+
+        // sounds
         ForgientSounds.register(modEventBus);
 
         // Register the commonSetup method for modloading

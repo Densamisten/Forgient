@@ -40,7 +40,6 @@ public class BookCommand {
                                         .executes(context -> copyBook(context, EntityArgument.getPlayer(context, "target"))))));
     }
 
-
     private static int writeText(CommandContext<CommandSourceStack> context) {
         Player player = context.getSource().getPlayer();
         ItemStack heldItem = player != null ? player.getMainHandItem() : null;
@@ -64,7 +63,7 @@ public class BookCommand {
                 currentPage.append(clipboardText.charAt(i));
 
                 // Check if the current page exceeds the character limit or if all clipboard content has been processed
-                if (currentPage.length() >= 256 || i == clipboardText.length() - 1) {
+                if (currentPage.length() >= 200 || i == clipboardText.length() - 1) {
                     // Add current page to the list of pages
                     pages.add(StringTag.valueOf(currentPage.toString()));
 
@@ -83,6 +82,7 @@ public class BookCommand {
             return 0;
         }
     }
+
 
     private static void writeTextToBook(ItemStack book, ListTag pages) {
         CompoundTag bookTag = book.getOrCreateTag();
@@ -174,13 +174,6 @@ public class BookCommand {
             return 0;
         }
 
-        // Check if the target player has enough inventory space
-        Inventory targetInventory = targetPlayer.getInventory();
-        if (!targetInventory.add(heldItem.copy())) {
-            sourceStack.sendFailure(Component.literal(targetPlayer.getName() + "'s inventory is full."));
-            return 0;
-        }
-
         // Copy the book to the target player's inventory
         ItemStack copiedBook = heldItem.copy();
         copiedBook.setCount(1); // Ensure only one copy is added
@@ -189,19 +182,12 @@ public class BookCommand {
             CompoundTag bookTag = heldItem.getTag();
             if (bookTag != null && bookTag.contains("title")) {
                 String title = bookTag.getString("title");
-                sourceStack.sendSuccess(() -> Component.literal("Copied book \"" + title + "\" to " + targetPlayer.getName() + "'s inventory."), true);
-                targetPlayer.displayClientMessage(Component.literal("You received a copied book \"" + title + "\" from " + sourcePlayer.getName() + "."), false);
+                sourceStack.sendSuccess(() -> Component.literal("Copied book \"" + title + "\" to " + targetPlayer.getName().getString() + "'s inventory."), true);
+                targetPlayer.displayClientMessage(Component.literal("You received a copied book \"" + title + "\" from " + sourcePlayer.getName().getString() + "."), false);
             }
-        } else {
-            sourceStack.sendSuccess(() -> Component.literal("Copied book to " + targetPlayer.getName() + "'s inventory."), true);
-            targetPlayer.displayClientMessage(Component.literal("You received a copied book from " + sourcePlayer.getName() + "."), false);
         }
-
+        Inventory targetInventory = targetPlayer.getInventory();
         targetInventory.add(copiedBook);
-
-        // Notify players
-        sourceStack.sendSuccess(() ->Component.literal("Copied book to " + targetPlayer.getName() + "'s inventory."), true);
-        targetPlayer.displayClientMessage(Component.literal("You received a copied book from " + sourcePlayer.getName() + "."), false);
 
         return 1;
     }
